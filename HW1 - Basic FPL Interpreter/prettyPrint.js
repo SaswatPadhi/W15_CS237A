@@ -31,7 +31,8 @@ function prettyPrint(node) {
         this.write("]");
       }
     } else {
-      this.write(node.constructor.name);
+      if (node.constructor)
+        this.write(node.constructor.name);
       this.write(' { ');
       Object.keys(node).forEach((function(key, idx) {
         if (idx > 0) {
