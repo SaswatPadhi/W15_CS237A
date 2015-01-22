@@ -1,16 +1,14 @@
 function emptyObject() { return Object.create(null); }
 
-function copyEnv(env) {
+function pushEnv(env) {
     var newEnv = emptyObject();
-    $.extend(newEnv, env);
+    newEnv["_parent"] = env;
+    newEnv["vars"] = emptyObject();
     return newEnv;
 }
 
 F.evalAST = function (ast) {
-    var env = emptyObject();
-    env['vars'] = emptyObject();
-
-    return ev.call(env, ast);
+    return ev.call(pushEnv(null), ast);
 };
 
 function ev(ast) {
@@ -42,15 +40,15 @@ var evalTag = {
 
     "seq":  function(a, b) { ev.call(this, a); return ev.call(this, b); },
 
-    "id":   function(a)    { return this.vars[a]; },
-    "set":  function(x, e) { return this.vars[x] = ev.call(this, e); },
+    "id":   function(a)    { return chkDefined(this, a).vars[a]; },
+    "set":  function(x, e) { return chkDefined(this, x).vars[x] = ev.call(this, e) },
     "let":  function(x, e, b) {
-        var nenv = copyEnv(this);
+        var nenv = pushEnv(this);
         nenv.vars[x] = ev.call(nenv, e);
         return ev.call(nenv, b);
     },
 
-    "fun":  function(a, e) { return ['closure', a, e, copyEnv(this)]; },
+    "fun":  function(a, e) { return ['closure', a, e, this]; },
     "call": function(f)    {
         var c = chkType("closure", ev.call(this, f));
         var a = Array.prototype.slice.call(arguments, 1);
@@ -58,11 +56,12 @@ var evalTag = {
         if(c[1].length < a.length)
             throw "Number of arguments provided is more than the required number of arguments.";
 
+        var nenv = pushEnv(c[3]);
         for(var i = 0; i < a.length; ++i)
-            c[3].vars[c[1][i]] = ev.call(this, a[i]);
+            nenv.vars[c[1][i]] = ev.call(this, a[i]);
 
-        if(i < c[1].length) return ['closure', c[1].slice(i), c[2], c[3]];
-        else                return ev.call(c[3], c[2]);
+        if(i < c[1].length) return ['closure', c[1].slice(i), c[2], nenv];
+        else                return ev.call(nenv, c[2]);
     },
 
     "cons": function(h, t) { return ['cons', ev.call(this, h), ev.call(this, t)]; },
@@ -71,7 +70,7 @@ var evalTag = {
 
         for(var i = 1; i < arguments.length; i += 2)
             if((nvars = patMatch(arguments[i], v)) !== false) {
-                var nenv = copyEnv(this);
+                var nenv = pushEnv(this);
                 $.extend(nenv.vars, nvars);
                 return ev.call(nenv, arguments[i+1]);
             }
@@ -86,7 +85,7 @@ var evalTag = {
         var lv = ev.call(this, el);
         if(lv === null) return null;
 
-        var nenv = copyEnv(this);
+        var nenv = pushEnv(this);
         nenv.vars[x] = chkType("cons", lv)[1];
 
         if(arguments.length > 3) {
@@ -104,6 +103,12 @@ function chkType(t, v) {
     else throw "Invalid operand type for `" + v + "'. Expected: " + t;
 };
 
+function chkDefined(env, v) {
+    if(env === null)                    throw "Variable " + v + " not in scope.";
+    else if(env.vars[v] !== undefined)  return env;
+    else                                return chkDefined(env["_parent"], v);
+};
+
 function patMatch(p, v) {
     if(p === v)                 return emptyObject();
     if(!(p instanceof Array))   return false;
@@ -118,5 +123,5 @@ function patMatch(p, v) {
         if((r2 = patMatch(p[2], v[2])) === false) return false;
 
         return $.extend(r1, r2);
-    } else                  return false;
-}
+    } else return false;
+};

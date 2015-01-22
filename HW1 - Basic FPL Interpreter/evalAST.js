@@ -1,16 +1,14 @@
 function emptyObject() { return Object.create(null); }
 
-function copyEnv(env) {
+function pushEnv(env) {
     var newEnv = emptyObject();
-    $.extend(newEnv, env);
+    newEnv["_parent"] = env;
+    newEnv["vars"] = emptyObject();
     return newEnv;
 }
 
 F.evalAST = function (ast) {
-    var env = emptyObject();
-    env['vars'] = emptyObject();
-
-    return ev.call(env, ast);
+    return ev.call(pushEnv(null), ast);
 };
 
 function ev(ast) {
@@ -40,14 +38,14 @@ var evalTag = {
      /* short-circuited conditional */
     "if":   function(c, t, e) { return chkType("boolean", ev.call(this, c)) ? ev.call(this, t) : ev.call(this, e); },
 
-    "id":   function(a)    { return this.vars[a]; },
+    "id":   function(a)    { return chkDefined(this, a).vars[a]; },
     "let":  function(x, e, b) {
-        var nenv = copyEnv(this);
+        var nenv = pushEnv(this);
         nenv.vars[x] = ev.call(this, e);
         return ev.call(nenv, b);
     },
 
-    "fun":  function(a, e) { return ['closure', a, e, copyEnv(this)]; },
+    "fun":  function(a, e) { return ['closure', a, e, this]; },
     "call": function(f)    {
         var c = chkType("closure", ev.call(this, f));
         var a = Array.prototype.slice.call(arguments, 1);
@@ -55,10 +53,11 @@ var evalTag = {
         if(c[1].length != a.length)
             throw "Number of arguments provided doesn't match the required number of arguments.";
 
+        var nenv = pushEnv(c[3]);
         for(var i = 0; i < a.length; ++i)
-            c[3].vars[c[1][i]] = ev.call(this, a[i]);
+            nenv.vars[c[1][i]] = ev.call(this, a[i]);
 
-        return ev.call(c[3], c[2]);
+        return ev.call(nenv, c[2]);
     },
 };
 
@@ -66,4 +65,10 @@ function chkType(t, v) {
     if((typeof v == t) || (v instanceof Array && v[0] == t))
         return v;
     else throw "Invalid operand type for `" + v + "'. Expected: " + t;
+};
+
+function chkDefined(env, v) {
+    if(env === null)                    throw "Variable " + v + " not in scope.";
+    else if(env.vars[v] !== undefined)  return env;
+    else                                return chkDefined(env["_parent"], v);
 };
