@@ -59,7 +59,7 @@ L {
 
   expr  -- expr
     = modi (('==' | '!=' | '>' | '<' ) modi)*
-    | '"' alnum* '"'
+    | '"' (alnum | ' ')* '"'
 
   variable  -- variable
     = upper alnum*
@@ -588,9 +588,35 @@ function makeIterator(/* soln1, soln2, ... */) {
 
 insertPlayground(
     L,
-    'person(alice).\n' +
-    'person(bob).\n' +
-    'person(X)?'
+    'comment("4 queens problem").\n\n\n' +
+
+
+    'range(X,X,c(X, nil)).\n' +
+    'range(X,Y,c(X, T)) :- $Y>$X is "true", X1 is $X+1, range(X1,Y,T).\n\n\n' +
+
+
+    'perm(nil, nil).\n' +
+    'perm(c(H,T),L) :- perm(T,PT), del(H,L,PT).\n\n' +
+
+    'del(I,c(I,L),L).\n' +
+    'del(I,c(H,T),c(H,T1)) :- del(I,T,T1).\n\n\n' +
+
+
+    'safe(nil).\n' +
+    'safe(c(Q,O)) :- safe(O), noattack(Q,O,1).\n\n' +
+
+    'noattack(A,nil,B).\n' +
+    'noattack(Y,c(Y1,YL),Xd) :-\n' +
+    '  $Y1-$Y==$Xd is "false",\n' +
+    '  $Y-$Y1==$Xd is "false",\n' +
+    '  D1 is $Xd+1,\n' +
+    '  noattack(Y,YL,D1).\n\n\n' +
+
+
+    'solve(N, Q) :- range(1,N,L), perm(L,Q), safe(Q).\n\n\n' +
+
+
+    'solve(4, Q)?'
 );
 
         </script>
