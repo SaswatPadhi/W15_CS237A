@@ -1,9 +1,9 @@
-function _result(r, v) { return {'res': r, 'val': v}; }
+function _result(r, v) { return {'res': r, 'val': v}; };
 
-function _failed_error() { return new Error("match failed"); }
-function _pattern_error() { return new Error("invalid pattern"); }
+function _failed_error() { return new Error("match failed"); };
+function _pattern_error() { return new Error("invalid pattern"); };
 
-function Pat(){}
+function Pat(){};
 Pat.prototype.match = function() { throw _pattern_error(); };
 
 var _ = new Pat();
@@ -35,7 +35,7 @@ function match(value) {
 
 function _sane_equal(v1, v2) {
     return (v1 === v2 || (v1 instanceof Array && v2 instanceof Array && v1.length == 0 && v2.length == 0));
-}
+};
 
 function _pmatch(value, pat) {
     if(_sane_equal(value, pat)) return [];
@@ -47,12 +47,12 @@ function _pmatch(value, pat) {
         if(pat[0] instanceof Many_Pat) {
             var r = pat[0].match(value);
             if(r.res) return [r.val].concat(_pmatch(value.slice(r.res), pat.slice(1)));
-            return _pmatch(value, pat.slice(1));
+            return [[]].concat(_pmatch(value, pat.slice(1)));
         } else if(pat[0] instanceof Pat) {
             var r = pat[0].match(value[0]);
             if(r.res) return [r.val].concat(_pmatch(value.slice(1), pat.slice(1)));
         } else return _pmatch(value[0], pat[0]).concat(_pmatch(value.slice(1), pat.slice(1)));
-    } else if(pat[0] instanceof Many_Pat) return _pmatch(value, pat.slice(1));
+    } else if(pat[0] instanceof Many_Pat) return [[]].concat(_pmatch(value, pat.slice(1)));
 
     throw _failed_error();
 };
